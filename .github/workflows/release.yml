@@ -10,7 +10,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: mkdir src && tar -xJf project.tar.xz -C src && cp -r patch/. src/
-      - run: sed -i 's/applicationId = "com.hudnav.tmap"/applicationId = "kr.hudnav.nav4"/; s/versionCode = 1/versionCode = 4/' src/app/build.gradle.kts && grep -E "applicationId|versionCode" src/app/build.gradle.kts
+      - run: |
+          sed -i 's/applicationId = "com.hudnav.tmap"/applicationId = "kr.hudnav.nav5"/; s/versionCode = 1/versionCode = 5/' src/app/build.gradle.kts
+          sed -i '/wv.setBackgroundColor(Color.BLACK)/a\        wv.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false)' src/app/src/main/java/com/hudnav/tmap/NavBridge.kt
+          grep -E "applicationId|versionCode" src/app/build.gradle.kts
+          grep -n "RendererPriority" src/app/src/main/java/com/hudnav/tmap/NavBridge.kt
+      # 서명 키를 빌드마다 같게 유지 (다음 업데이트부터 덮어 설치 가능)
+      - uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: hud-debug-keystore-v1
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -20,9 +29,9 @@ jobs:
           gradle-version: "8.7"
       - run: gradle assembleDebug --no-daemon
         working-directory: src
-      - run: cp src/app/build/outputs/apk/debug/app-debug.apk hud-nav4.apk
+      - run: cp src/app/build/outputs/apk/debug/app-debug.apk hud-nav5.apk
       - env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create v4 hud-nav4.apk --title "HUD 내비 설치 파일 v4" --notes "휴대폰에서 hud-nav4.apk를 눌러 설치하세요" \
-            || gh release upload v4 hud-nav4.apk --clobber
+          gh release create v5 hud-nav5.apk --title "HUD 내비 설치 파일 v5" --notes "휴대폰에서 hud-nav5.apk를 눌러 설치하세요" \
+            || gh release upload v5 hud-nav5.apk --clobber
