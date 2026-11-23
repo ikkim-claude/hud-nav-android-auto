@@ -3,6 +3,8 @@ package com.hudnav.tmap.car
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
 import android.graphics.RectF
 import android.os.Handler
@@ -22,7 +24,7 @@ import kotlin.math.pow
 import kotlin.math.roundToInt
 import kotlin.math.tan
 
-/** 차 화면 배경지도: 어두운 지도 타일(© OpenStreetMap © CARTO)을 받아 그림 */
+/** 차 화면 배경지도: OpenStreetMap 지도 타일을 받아 HUD용 어두운 색으로 뒤집어 그림 */
 class TileLayer(private val onLoaded: () -> Unit) {
     private val cache = object : LruCache<String, Bitmap>(32 * 1024 * 1024) {
         override fun sizeOf(key: String, value: Bitmap) = value.byteCount
@@ -31,7 +33,16 @@ class TileLayer(private val onLoaded: () -> Unit) {
     private val failedAt = HashMap<String, Long>()
     private val pool = Executors.newFixedThreadPool(4)
     private val main = Handler(Looper.getMainLooper())
-    private val paint = Paint(Paint.FILTER_BITMAP_FLAG).apply { alpha = 235 }
+    private val paint = Paint(Paint.FILTER_BITMAP_FLAG).apply {
+        // 색을 옅게 한 뒤 밝기를 뒤집음: 흰 바탕 → 진한 회색, 도로 → 어두운 선, 글자 → 밝은 글자
+        val m = ColorMatrix(floatArrayOf(
+            -0.85f, 0f, 0f, 0f, 225f,
+            0f, -0.85f, 0f, 0f, 225f,
+            0f, 0f, -0.85f, 0f, 225f,
+            0f, 0f, 0f, 1f, 0f))
+        m.preConcat(ColorMatrix().apply { setSaturation(0.3f) })
+        colorFilter = ColorMatrixColorFilter(m)
+    }
     private val dst = RectF()
     private val opts = BitmapFactory.Options().apply { inPreferredConfig = Bitmap.Config.RGB_565 }
 
@@ -77,8 +88,7 @@ class TileLayer(private val onLoaded: () -> Unit) {
         if (!pending.add(key)) return null
         pool.execute {
             try {
-                val sub = "abcd"[(x + y) % 4]
-                val c = URL("https://$sub.basemaps.cartocdn.com/dark_all/$key.png").openConnection() as HttpURLConnection
+                val c = URL("https://tile.openstreetmap.org/$key.png").openConnection() as HttpURLConnection
                 c.setRequestProperty("User-Agent", "HudNav/1.0 (personal Android Auto app)")
                 c.connectTimeout = 8000; c.readTimeout = 8000
                 val bmp = c.inputStream.use { BitmapFactory.decodeStream(it, null, opts) }
