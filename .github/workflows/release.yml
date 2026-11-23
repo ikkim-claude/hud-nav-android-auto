@@ -10,6 +10,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: mkdir src && tar -xJf project.tar.xz -C src
+      - run: sed -i 's/applicationId = "com.hudnav.tmap"/applicationId = "kr.hudnav.auto"/; s/versionCode = 1/versionCode = 2/' src/app/build.gradle.kts && grep -E "applicationId|versionCode" src/app/build.gradle.kts
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -19,9 +20,9 @@ jobs:
           gradle-version: "8.7"
       - run: gradle assembleDebug --no-daemon
         working-directory: src
-      - run: cp src/app/build/outputs/apk/debug/app-debug.apk hud-nav.apk
+      - run: cp src/app/build/outputs/apk/debug/app-debug.apk hud-nav2.apk
       - env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create v1 hud-nav.apk --title "HUD 내비 설치 파일" --notes "휴대폰에서 hud-nav.apk를 눌러 설치하세요" \
-            || gh release upload v1 hud-nav.apk --clobber
+          gh release create v2 hud-nav2.apk --title "HUD 내비 설치 파일 v2" --notes "휴대폰에서 hud-nav2.apk를 눌러 설치하세요" \
+            || gh release upload v2 hud-nav2.apk --clobber
