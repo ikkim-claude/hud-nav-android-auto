@@ -18,8 +18,13 @@ jobs:
       # 서명 키를 빌드마다 같게 유지 (다음 업데이트부터 덮어 설치 가능)
       - uses: actions/cache@v4
         with:
-          path: ~/.android/debug.keystore
-          key: hud-debug-keystore-v1
+          path: ~/hudkey
+          key: hud-debug-keystore-v2
+      - run: |
+          mkdir -p ~/hudkey
+          [ -f ~/hudkey/debug.keystore ] || keytool -genkeypair -keystore ~/hudkey/debug.keystore -storepass android -keypass android -alias androiddebugkey -dname "CN=Android Debug,O=Android,C=US" -keyalg RSA -keysize 2048 -validity 10000 -storetype JKS
+          echo "ANDROID_USER_HOME=$HOME/hudkey" >> $GITHUB_ENV
+          keytool -list -keystore ~/hudkey/debug.keystore -storepass android | grep -i fingerprint
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -33,5 +38,5 @@ jobs:
       - env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create v6 hud-nav6.apk --title "HUD 내비 설치 파일 v6 (차 화면 지도)" --notes "휴대폰에서 hud-nav6.apk를 눌러 설치하세요. v5 위에 덮어 설치됩니다." \
+          gh release create v6 hud-nav6.apk --title "HUD 내비 설치 파일 v6 (차 화면 지도)" --notes "휴대폰에서 hud-nav6.apk를 눌러 설치하세요." \
             || gh release upload v6 hud-nav6.apk --clobber
