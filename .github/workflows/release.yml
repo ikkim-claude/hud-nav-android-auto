@@ -10,8 +10,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: mkdir src && tar -xJf project.tar.xz -C src && cp -r patch/. src/
-      # 최신 HUD 화면(HTML) 넣기
-      - run: xz -dc index.html.xz > src/app/src/main/assets/index.html && grep -c "showAdvice" src/app/src/main/assets/index.html
+      # 최신 HUD 화면(HTML) 넣기 (원래 파일이 읽기 전용이라 지우고 새로 씀)
+      - run: |
+          rm -f src/app/src/main/assets/index.html
+          xz -dc index.html.xz > src/app/src/main/assets/index.html
+          grep -c "showAdvice" src/app/src/main/assets/index.html
       - run: |
           sed -i 's/applicationId = "com.hudnav.tmap"/applicationId = "kr.hudnav.nav5"/; s/versionCode = 1/versionCode = 8/' src/app/build.gradle.kts
           sed -i '/wv.setBackgroundColor(Color.BLACK)/a\        wv.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false)' src/app/src/main/java/com/hudnav/tmap/NavBridge.kt
