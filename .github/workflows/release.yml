@@ -10,14 +10,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: mkdir src && tar -xJf project.tar.xz -C src && cp -r patch/. src/
+      # 최신 HUD 화면(HTML) 넣기
+      - run: xz -dc index.html.xz > src/app/src/main/assets/index.html && grep -c "showAdvice" src/app/src/main/assets/index.html
       - run: |
-          sed -i 's/applicationId = "com.hudnav.tmap"/applicationId = "kr.hudnav.nav5"/; s/versionCode = 1/versionCode = 7/' src/app/build.gradle.kts
+          sed -i 's/applicationId = "com.hudnav.tmap"/applicationId = "kr.hudnav.nav5"/; s/versionCode = 1/versionCode = 8/' src/app/build.gradle.kts
           sed -i '/wv.setBackgroundColor(Color.BLACK)/a\        wv.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false)' src/app/src/main/java/com/hudnav/tmap/NavBridge.kt
           sed -i 's/© OpenStreetMap © CARTO/© OpenStreetMap/' src/app/src/main/java/com/hudnav/tmap/car/MapRenderer.kt
           grep -E "applicationId|versionCode" src/app/build.gradle.kts
           grep -n "RendererPriority" src/app/src/main/java/com/hudnav/tmap/NavBridge.kt
-          grep -n "openstreetmap" src/app/src/main/java/com/hudnav/tmap/car/TileLayer.kt
-      # 서명 키를 빌드마다 같게 유지 (다음 업데이트부터 덮어 설치 가능)
+      # 서명 키를 빌드마다 같게 유지 (덮어 설치 가능)
       - uses: actions/cache@v4
         with:
           path: ~/hudkey
@@ -26,7 +27,6 @@ jobs:
           mkdir -p ~/hudkey
           [ -f ~/hudkey/debug.keystore ] || keytool -genkeypair -keystore ~/hudkey/debug.keystore -storepass android -keypass android -alias androiddebugkey -dname "CN=Android Debug,O=Android,C=US" -keyalg RSA -keysize 2048 -validity 10000 -storetype JKS
           echo "ANDROID_USER_HOME=$HOME/hudkey" >> $GITHUB_ENV
-          keytool -list -keystore ~/hudkey/debug.keystore -storepass android | grep -i fingerprint
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -36,9 +36,9 @@ jobs:
           gradle-version: "8.7"
       - run: gradle assembleDebug --no-daemon
         working-directory: src
-      - run: cp src/app/build/outputs/apk/debug/app-debug.apk hud-nav7.apk
+      - run: cp src/app/build/outputs/apk/debug/app-debug.apk hud-nav8.apk
       - env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create v7 hud-nav7.apk --title "HUD 내비 설치 파일 v7 (차 화면 지도)" --notes "휴대폰에서 hud-nav7.apk를 눌러 설치하세요. v6 위에 덮어 설치됩니다." \
-            || gh release upload v7 hud-nav7.apk --clobber
+          gh release create v8 hud-nav8.apk --title "HUD 내비 설치 파일 v8 (막히지 않고 빠른 길 추천)" --notes "휴대폰에서 hud-nav8.apk를 눌러 설치하세요. 기존 앱 위에 덮어 설치됩니다." \
+            || gh release upload v8 hud-nav8.apk --clobber
