@@ -35,7 +35,30 @@ object NavBridge {
         fun onSearch(r: JSONObject) {}
         fun onRoutes(r: JSONObject) {}
         fun onDecide() {}
+        fun onProgress(t: String) {}
     }
+
+    /** TMAP 요청이 끝없이 기다리지 않도록 15초 제한 + 진행 상황을 차 화면에 알림 */
+    private const val FETCH_GUARD = """(function(){
+  if (window.__guard || !window.fetch) return; window.__guard = 1;
+  var f = window.fetch.bind(window);
+  var tell = function(t){ try { AndroidCar.progress(t); } catch (e) {} };
+  window.fetch = function(u, o) {
+    o = o || {};
+    if (String(u).indexOf('apis.openapi.sk.com') < 0 || o.signal) return f(u, o);
+    var kind = String(u).indexOf('/routes') >= 0 ? '경로' : '장소';
+    var c = new AbortController(), t = setTimeout(function(){ c.abort(); }, 15000);
+    tell('TMAP ' + kind + ' 요청 보냄');
+    return f(u, Object.assign({}, o, { signal: c.signal })).then(function(r){
+      clearTimeout(t); tell('TMAP ' + kind + ' 응답 ' + r.status); return r;
+    }, function(e){
+      clearTimeout(t);
+      var m = e && e.name === 'AbortError' ? 'TMAP 서버 응답이 15초 넘게 없어요 (휴대폰 인터넷 확인)' : (e && e.message) || '요청 실패';
+      tell('TMAP ' + kind + ' 실패: ' + m);
+      throw new Error(m);
+    });
+  };
+})();"""
 
     class RouteGeom(val id: Int, val lat: DoubleArray, val lon: DoubleArray, val jams: List<IntArray>)
 
@@ -67,6 +90,8 @@ object NavBridge {
         WebView.setWebContentsDebuggingEnabled(true)
         val wv = WebView(MutableContextWrapper(if (ctx is Activity) ctx else app))
         wv.setBackgroundColor(Color.BLACK)
+        // 휴대폰 화면이 꺼지거나 앱이 뒤에 있어도(차 화면만 쓸 때) 웹 화면이 멈추지 않게
+        wv.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false)
         wv.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
@@ -79,7 +104,10 @@ object NavBridge {
         wv.webViewClient = object : WebViewClient() {
             override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
                 loader.shouldInterceptRequest(request.url)
-            override fun onPageFinished(view: WebView, url: String) { status("화면 불러옴") }
+            override fun onPageFinished(view: WebView, url: String) {
+                view.evaluateJavascript(FETCH_GUARD, null)
+                status("화면 불러옴")
+            }
             override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
                 if (request.isForMainFrame) status("화면 불러오기 실패: ${error.description} (${request.url})")
             }
@@ -172,6 +200,10 @@ object NavBridge {
         @JavascriptInterface fun routes(json: String) {
             val j = parse(json) ?: return
             main.post { listeners.forEach { it.onRoutes(j) } }
+        }
+
+        @JavascriptInterface fun progress(text: String) {
+            main.post { listeners.forEach { it.onProgress(text) } }
         }
 
         @JavascriptInterface fun decide(json: String) {
